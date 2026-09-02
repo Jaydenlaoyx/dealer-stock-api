@@ -1,7 +1,7 @@
 using Dapper;
 using DealerStockApi.Data;
 using FastEndpoints;
-using System.Security.Claims;
+using DealerStockApi.Extensions;
 
 namespace DealerStockApi.Features.Cars.GetCar;
 
@@ -21,9 +21,7 @@ public class GetCarEndpoint : EndpointWithoutRequest<GetCarResponse>
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var dealerIdValue = User.FindFirstValue("DealerId");
-
-        if (!int.TryParse(dealerIdValue, out var dealerId))
+        if (!User.TryGetDealerId(out var dealerId))
         {
             await Send.UnauthorizedAsync(ct);
             return;

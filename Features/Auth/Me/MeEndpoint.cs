@@ -1,5 +1,6 @@
 using FastEndpoints;
 using System.Security.Claims;
+using DealerStockApi.Extensions;
 
 namespace DealerStockApi.Features.Auth.Me;
 
@@ -12,13 +13,10 @@ public class MeEndpoint : EndpointWithoutRequest<MeResponse>
 
     public override async Task HandleAsync(CancellationToken ct)
     {
-        var dealerIdValue =
-            User.FindFirstValue("DealerId");
-
         var username =
             User.FindFirstValue("Username");
 
-        if (!int.TryParse(dealerIdValue, out var dealerId))
+        if (!User.TryGetDealerId(out var dealerId))
         {
             await Send.UnauthorizedAsync(ct);
             return;

@@ -1,7 +1,7 @@
 using Dapper;
 using DealerStockApi.Data;
 using FastEndpoints;
-using System.Security.Claims;
+using DealerStockApi.Extensions;
 
 namespace DealerStockApi.Features.Cars.AddCar;
 
@@ -23,15 +23,43 @@ public class AddCarEndpoint : Endpoint<AddCarRequest, AddCarResponse>
         AddCarRequest req,
         CancellationToken ct)
     {
-        var dealerIdValue = User.FindFirstValue("DealerId");
-
-        if (!int.TryParse(dealerIdValue, out var dealerId))
+        if (!User.TryGetDealerId(out var dealerId))
         {
             await Send.UnauthorizedAsync(ct);
             return;
         }
 
         using var connection = _connectionFactory.CreateConnection();
+
+        const string duplicateSql = """
+            SELECT COUNT(1)
+            FROM Cars
+            WHERE DealerId = @DealerId
+            AND LOWER(Make) = LOWER(@Make)
+            AND LOWER(Model) = LOWER(@Model)
+            AND Year = @Year;
+            """;
+
+        var duplicateExists =
+            await connection.ExecuteScalarAsync<bool>(
+                duplicateSql,
+                new
+                {
+                    DealerId = dealerId,
+                    Make = req.Make.Trim(),
+                    Model = req.Model.Trim(),
+                    req.Year
+                });
+
+        if (duplicateExists)
+        {
+            await Send.StringAsync(
+                "A car with the same make, model and year already exists.",
+                statusCode: StatusCodes.Status409Conflict,
+                cancellation: ct);
+
+            return;
+        }
 
         const string sql = """
             INSERT INTO Cars
@@ -47,8 +75,8 @@ public class AddCarEndpoint : Endpoint<AddCarRequest, AddCarResponse>
             new
             {
                 DealerId = dealerId,
-                req.Make,
-                req.Model,
+                Make = req.Make.Trim(),
+                Model = req.Model.Trim(),
                 req.Year,
                 req.StockLevel
             });
@@ -56,8 +84,8 @@ public class AddCarEndpoint : Endpoint<AddCarRequest, AddCarResponse>
         var response = new AddCarResponse
         {
             Id = (int)carId,
-            Make = req.Make,
-            Model = req.Model,
+            Make = req.Make.Trim(),
+            Model = req.Model.Trim(),
             Year = req.Year,
             StockLevel = req.StockLevel
         };

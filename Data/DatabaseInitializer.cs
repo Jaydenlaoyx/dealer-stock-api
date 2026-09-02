@@ -46,6 +46,16 @@ public class DatabaseInitializer
                     ON DELETE CASCADE
             );
             """;
+        
+        const string createCarsUniqueIndexSql = """
+            CREATE UNIQUE INDEX IF NOT EXISTS
+                IX_Cars_DealerId_Make_Model_Year
+            ON Cars
+                (DealerId, Make, Model, Year);
+            """;
+
+        await connection.ExecuteAsync(
+            createCarsUniqueIndexSql);
 
         await connection.ExecuteAsync(createDealersTableSql);
         await connection.ExecuteAsync(createCarsTableSql);
